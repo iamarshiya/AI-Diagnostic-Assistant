@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
+import { useNavigate } from 'react-router-dom';
 
 // Default symptom options
 const DEFAULT_SYMPTOMS = [
@@ -56,13 +57,13 @@ const DEFAULT_SYMPTOMS = [
 
 function SymptomForm() {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
-  const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [symptomOptions, setSymptomOptions] = useState([]);
   const [loadingSymptoms, setLoadingSymptoms] = useState(true);
 
-  // Fetch symptoms from backend or use default
+  const navigate = useNavigate();
+
   useEffect(() => {
     setSymptomOptions(DEFAULT_SYMPTOMS);
     setLoadingSymptoms(false);
@@ -90,19 +91,17 @@ function SymptomForm() {
 
   const handleSymptomChange = (selectedOptions) => {
     setSelectedSymptoms(selectedOptions || []);
-    setPrediction(null);
     setError(null);
   };
 
   const handlePredict = async () => {
     setLoading(true);
     setError(null);
-    setPrediction(null);
 
     const symptoms = selectedSymptoms.map(s => s.value);
 
     try {
-      const response = await fetch('/predict', {
+      const response = await fetch('http://localhost:8001/predict', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symptoms }),
@@ -111,7 +110,9 @@ function SymptomForm() {
       const data = await response.json();
 
       if (response.ok) {
-        setPrediction(data);
+        // --- CHANGE IS HERE ---
+        // Instead of saving to state, we navigate immediately
+        navigate("/prediction-details", { state: { prediction: data } });
       } else {
         setError(data.detail || 'Prediction failed');
       }
@@ -153,28 +154,7 @@ function SymptomForm() {
         </button>
       </div>
 
-      {prediction && (
-  <div className="prediction-result">
-    <h3 className="result-title">Prediction Result:</h3>
-    <p className="result-detail">
-      <strong>Predicted Disease:</strong> {prediction.predicted_disease}
-    </p>
-    <p className="result-detail">
-      <strong>Confidence:</strong> {(prediction.confidence * 100).toFixed(1)}%
-    </p>
-
-    <button
-      className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-      onClick={() =>
-        window.location.href = "/prediction-details"
-      }
-    >
-      See Details
-    </button>
-  </div>
-)}
-
-
+      
       {error && <div className="error-message">{error}</div>}
     </div>
   );
