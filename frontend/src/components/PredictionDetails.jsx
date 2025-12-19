@@ -8,93 +8,119 @@ function PredictionDetails() {
 
   if (!prediction) return null;
 
-  // --- DYNAMIC THEME LOGIC ---
+  // -----------------------------
+  // Clinical Risk Theme (Soft)
+  // -----------------------------
   let theme = {
-    color: 'text-green-800',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    headerColor: 'bg-green-600',
-    barColor: 'bg-green-500',
-    icon: '🌿',
-    title: 'HEALTH ANALYSIS',
-    treatmentTitle: 'RECOMMENDED CARE'
+    accent: 'text-slate-900',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    header: 'bg-emerald-100',
+    bar: 'bg-emerald-300',
+    label: 'LOW CLINICAL RISK',
   };
 
   if (prediction.alert_level === 'critical') {
     theme = {
-      color: 'text-red-800',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      headerColor: 'bg-red-600',
-      barColor: 'bg-red-500',
-      icon: '🚨',
-      title: 'CRITICAL ALERT',
-      treatmentTitle: 'EMERGENCY PROTOCOL'
+      accent: 'text-slate-900',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      header: 'bg-red-100',
+      bar: 'bg-red-300',
+      label: 'HIGH CLINICAL RISK',
     };
   } else if (prediction.alert_level === 'uncertain') {
     theme = {
-      color: 'text-yellow-800',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      headerColor: 'bg-yellow-500',
-      barColor: 'bg-yellow-500',
-      icon: '⚠️',
-      title: 'UNCERTAIN DIAGNOSIS',
-      treatmentTitle: 'MEDICAL CONSULTATION ADVISED'
+      accent: 'text-slate-900',
+      bg: 'bg-amber-50',
+      border: 'border-amber-200',
+      header: 'bg-amber-100',
+      bar: 'bg-amber-300',
+      label: 'INCONCLUSIVE ASSESSMENT',
     };
   }
 
+  const confidencePercent = (prediction.confidence * 100).toFixed(1);
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 flex justify-center">
-      <div className="max-w-2xl w-full space-y-6">
-        
-        {/* DIAGNOSIS CARD */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className={`${theme.headerColor} px-6 py-4`}>
-            <h2 className="text-white font-bold text-xl flex items-center gap-2">
-              {theme.icon} {theme.title}
+    <div className="h-screen bg-slate-50 px-4 flex items-center justify-center">
+      <div className="max-w-3xl w-full space-y-4">
+
+        {/* ===== Diagnostic Summary ===== */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className={`${theme.header} px-5 py-3`}>
+            <h2 className="text-sm font-semibold text-slate-700 tracking-wide">
+              Diagnostic Assessment Report
             </h2>
           </div>
 
-          <div className="p-8 text-center">
-            <p className="text-gray-500 uppercase text-xs font-bold mb-2">Predicted Condition</p>
-            <h1 className={`text-4xl font-extrabold mb-4 ${theme.color}`}>
+          <div className="p-5 text-center">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-1">
+              Predicted Condition
+            </p>
+
+            <h1 className={`text-3xl font-semibold ${theme.accent}`}>
               {prediction.diagnosis}
             </h1>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 max-w-xs mx-auto">
-              <div 
-                className={`h-2.5 rounded-full ${theme.barColor}`} 
-                style={{ width: `${prediction.confidence * 100}%` }}
-              ></div>
+
+            <p className="mt-1 text-xs font-medium text-slate-600">
+              {theme.label}
+            </p>
+
+            {/* Confidence */}
+            <div className="mt-3 max-w-xs mx-auto">
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${theme.bar}`}
+                  style={{ width: `${confidencePercent}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Model confidence: {confidencePercent}%
+              </p>
             </div>
-            <p className="text-sm text-gray-500">{(prediction.confidence * 100).toFixed(1)}% Confidence</p>
           </div>
         </div>
 
-        {/* TREATMENT CARD */}
-        <div className={`rounded-xl shadow-md border overflow-hidden ${theme.bgColor} ${theme.borderColor}`}>
-          <div className="p-6">
-            <h3 className={`font-bold text-lg mb-4 flex items-center ${theme.color}`}>
-              {theme.treatmentTitle}
-            </h3>
-            <ul className="space-y-3">
-              {prediction.treatments.map((step, idx) => (
-                <li key={idx} className="flex items-start bg-white bg-opacity-60 p-3 rounded-lg shadow-sm">
-                  <span className={`mr-3 font-bold ${theme.color}`}>{idx + 1}.</span>
-                  <span className="text-gray-800 font-medium">{step}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* ===== Clinical Recommendations ===== */}
+        <div className={`${theme.bg} ${theme.border} border rounded-xl px-4 py-3`}>
+          <h3 className="text-sm font-semibold text-slate-800 mb-2">
+            Clinical Recommendations
+          </h3>
+
+          <ul className="space-y-2">
+            {prediction.treatments.slice(0, 2).map((item, index) => (
+              <li
+                key={index}
+                className="flex gap-3 bg-white border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-800"
+              >
+                <span className="font-medium">{index + 1}.</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
+        {/* ===== Disclaimer ===== */}
+        <div className="text-[11px] text-slate-500 bg-white border border-slate-200 rounded-md px-4 py-2">
+          <strong>Clinical Disclaimer:</strong> AI-assisted decision support only.
+          Not a substitute for professional medical evaluation.
+        </div>
+
+        {/* ===== CTA ===== */}
         <button
           onClick={() => navigate('/')}
-          className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold hover:bg-gray-900 transition"
+          className="w-full bg-slate-900 text-white py-3 rounded-lg text-sm font-medium hover:bg-slate-800 transition"
         >
-          Analyze New Symptoms
+          Start New Assessment
         </button>
+
+        {/* ================= FOOTER ================= */}
+      <footer className="border-t bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-2 text-xs text-gray-500 text-center">
+          © 2025 AI Diagnostic Assistant — Clinical decision support prototype
+        </div>
+      </footer>
 
       </div>
     </div>

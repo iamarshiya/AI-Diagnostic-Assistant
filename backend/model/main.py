@@ -1,10 +1,32 @@
+"""
+Medical AI Diagnostic System
+----------------------------
+Single-file clinical decision-support prototype.
+
+Layers:
+1. Configuration & Paths
+2. Medical Knowledge (critical rules, treatments)
+3. NLP Interpretation (symptom normalization)
+4. ML Inference (prediction & confidence)
+5. Safety & Alert Logic
+6. API Layer (FastAPI)
+
+DISCLAIMER:
+This system is for decision support only and does NOT replace
+professional medical diagnosis or treatment.
+"""
+
+# ===============================
+# 1. IMPORTS & CONFIGURATION
+# ===============================
+
 import os
 import joblib
 import pandas as pd
 import numpy as np
 import uvicorn
 import logging
-from typing import List, Dict, Optional
+from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -14,115 +36,155 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# --- Configuration ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MedicalAI")
 
-# Paths
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "..", "data")
-MODEL_PATH = os.path.join(SCRIPT_DIR, "diagnosis_model.pkl")
+# ===============================
+# 2. PATHS & DATA SOURCES
+# ===============================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+MODEL_PATH = os.path.join(BASE_DIR, "diagnosis_model.pkl")
 TRAINING_CSV = os.path.join(DATA_DIR, "Training.csv")
 PRECAUTION_CSV = os.path.join(DATA_DIR, "symptom_precaution.csv")
 
-# --- 1. TREATMENT LOADER (Case-Insensitive) ---
-def load_treatment_database():
-    treatment_db = {}
-    if not os.path.exists(PRECAUTION_CSV):
-        logger.warning(f"⚠️ Precaution CSV not found at {PRECAUTION_CSV}")
-        return treatment_db
+# ===============================
+# 3. MEDICAL KNOWLEDGE BASE
+# ===============================
 
-    try:
-        df = pd.read_csv(PRECAUTION_CSV)
-        for _, row in df.iterrows():
-            # Force Title Case to match model output (e.g. "heart attack" -> "Heart Attack")
-            disease = str(row['Disease']).strip().title()
-            precautions = [
-                str(row[col]).strip().title() 
-                for col in ['Precaution_1', 'Precaution_2', 'Precaution_3', 'Precaution_4'] 
-                if pd.notna(row[col])
-            ]
-            treatment_db[disease] = precautions
-        logger.info(f"✅ Loaded treatments for {len(treatment_db)} diseases.")
-    except Exception as e:
-        logger.error(f"❌ Error loading CSV: {e}")
-    
-    return treatment_db
+CRITICAL_CONDITIONS = [
+    "Heart Attack", "Pneumonia", "Tuberculosis", "Typhoid",
+    "Malaria", "Dengue", "Covid-19", "Hepatitis B",
+    "Hepatitis C", "Hepatitis D", "Hepatitis E",
+    "Alcoholic Hepatitis", "Paralysis (Brain Hemorrhage)",
+    "Gastroenteritis", "Diabetes"
+]
+
+def load_treatment_database():
+    treatments = {}
+    if not os.path.exists(PRECAUTION_CSV):
+        logger.warning("Precaution database not found.")
+        return treatments
+
+    df = pd.read_csv(PRECAUTION_CSV)
+    for _, row in df.iterrows():
+        disease = str(row["Disease"]).strip().title()
+        precautions = [
+            str(row[col]).strip().title()
+            for col in ["Precaution_1", "Precaution_2", "Precaution_3", "Precaution_4"]
+            if pd.notna(row[col])
+        ]
+        treatments[disease] = precautions
+
+    logger.info(f"Loaded treatments for {len(treatments)} conditions.")
+    return treatments
 
 TREATMENT_DATABASE = load_treatment_database()
 
-# --- 2. CRITICAL CONDITIONS LIST (Must Match Title Case) ---
-CRITICAL_CONDITIONS = [
-    "Heart Attack", "Pneumonia", "Tuberculosis", "Typhoid", 
-    "Malaria", "Dengue", "Covid-19", "Hepatitis B", "Hepatitis C", 
-    "Hepatitis D", "Hepatitis E", "Alcoholic Hepatitis", 
-    "Paralysis (Brain Hemorrhage)", "Gastroenteritis", "Diabetes"
-]
+# ===============================
+# 4. NLP SYMPTOM INTERPRETER
+# ===============================
 
-# --- 3. AI NLP BRAIN (Typo Fixer) ---
 class MedicalLanguageEncoder:
+    """
+    Handles typo tolerance and fuzzy symptom matching.
+    """
+
     def __init__(self, vocabulary: List[str]):
         self.vocabulary = vocabulary
-        if not vocabulary:
-            self.vectorizer = None
-            return
-        # 'char_wb' helps with partial word matches (typos)
-        self.vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(2, 4))
-        self.vectorizer.fit(self.vocabulary)
-        self.vocab_vectors = self.vectorizer.transform(self.vocabulary)
+        self.vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4))
+        self.vectorizer.fit(vocabulary)
+        self.vocab_vectors = self.vectorizer.transform(vocabulary)
 
-    def interpret(self, user_text: str, threshold=0.35):
-        if not self.vectorizer: return None, 0.0
-        user_vec = self.vectorizer.transform([user_text])
-        similarities = cosine_similarity(user_vec, self.vocab_vectors)
-        best_idx = similarities.argmax()
-        confidence = similarities[0, best_idx]
+    def interpret(self, text: str, threshold: float = 0.35):
+        vector = self.vectorizer.transform([text])
+        similarities = cosine_similarity(vector, self.vocab_vectors)
+        idx = similarities.argmax()
+        confidence = similarities[0, idx]
+
         if confidence >= threshold:
-            return self.vocabulary[best_idx], round(confidence, 2)
+            return self.vocabulary[idx], round(confidence, 2)
         return None, 0.0
 
-# --- 4. MODEL LOADING/TRAINING ---
+# ===============================
+# 5. MODEL LOADING / TRAINING
+# ===============================
+
 def load_or_train_model():
-    # Try loading existing model
     if os.path.exists(MODEL_PATH):
-        try:
-            return joblib.load(MODEL_PATH)
-        except: pass
-    
-    # Train if missing
-    print("🧠 Training AI Model...")
-    try:
-        if not os.path.exists(TRAINING_CSV):
-            print(f"❌ Error: {TRAINING_CSV} not found!")
-            return None, {}, []
+        logger.info("Loading trained model.")
+        return joblib.load(MODEL_PATH)
 
-        df = pd.read_csv(TRAINING_CSV)
-        X = df.iloc[:, :-1]
-        y = df.iloc[:, -1]
-        
-        symptom_names = list(X.columns)
-        symptom_map = {name.lower().strip().replace(' ', '_'): i for i, name in enumerate(symptom_names)}
+    logger.info("Training new AI model.")
 
-        # Neural Network
-        model = MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=500, random_state=42)
-        model.fit(X, y)
-        
-        joblib.dump((model, symptom_map, symptom_names), MODEL_PATH)
-        return model, symptom_map, symptom_names
-    except Exception as e:
-        print(f"❌ Training failed: {e}")
-        return None, {}, []
+    if not os.path.exists(TRAINING_CSV):
+        raise RuntimeError("Training dataset not found.")
+
+    df = pd.read_csv(TRAINING_CSV)
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1]
+
+    symptom_names = list(X.columns)
+    symptom_index = {
+        name.lower().replace(" ", "_"): i
+        for i, name in enumerate(symptom_names)
+    }
+
+    model = MLPClassifier(
+        hidden_layer_sizes=(64, 32),
+        max_iter=500,
+        random_state=42
+    )
+    model.fit(X, y)
+
+    joblib.dump((model, symptom_index, symptom_names), MODEL_PATH)
+    return model, symptom_index, symptom_names
 
 model, symptom_to_index, symptom_names = load_or_train_model()
-nlp_brain = MedicalLanguageEncoder(list(symptom_to_index.keys())) if symptom_to_index else None
+nlp_brain = MedicalLanguageEncoder(list(symptom_to_index.keys()))
 
-# --- API SETUP ---
+# ===============================
+# 6. SAFETY & CLINICAL LOGIC
+# ===============================
+
+def determine_alert_level(diagnosis: str, confidence: float) -> str:
+    if diagnosis in CRITICAL_CONDITIONS:
+        return "critical"
+    if confidence < 0.45:
+        return "uncertain"
+    return "safe"
+
+def get_treatment_plan(diagnosis: str, alert_level: str):
+    if alert_level == "critical":
+        return [
+            "Immediate medical evaluation is required.",
+            "Proceed to the nearest emergency medical facility.",
+            "Avoid self-medication.",
+            "Continuous monitoring of vital signs is advised."
+        ]
+    if alert_level == "uncertain":
+        return [
+            "Diagnosis confidence is low.",
+            "Consult a licensed medical practitioner.",
+            "Avoid medication without prescription.",
+            "Observe and document symptom progression."
+        ]
+    return TREATMENT_DATABASE.get(
+        diagnosis,
+        ["Medical consultation is advised.", "Adequate rest and hydration recommended."]
+    )
+
+# ===============================
+# 7. FASTAPI APPLICATION
+# ===============================
+
 app = FastAPI(title="Medical AI Diagnostic System")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -132,87 +194,65 @@ class InputPayload(BaseModel):
 
 @app.post("/predict")
 def predict(payload: InputPayload):
-    if not model: raise HTTPException(status_code=503, detail="AI Offline")
+    if not model:
+        raise HTTPException(status_code=503, detail="AI system unavailable.")
 
-    # 1. NLP Interpretation (Clean Input)
-    active_features = []
-    ai_log = []
-    
-    for text in payload.symptoms:
-        clean = text.lower().strip().replace(' ', '_')
+    active_symptoms = []
+    ai_corrections = []
+
+    for symptom in payload.symptoms:
+        clean = symptom.lower().replace(" ", "_")
         if clean in symptom_to_index:
-            active_features.append(clean)
+            active_symptoms.append(clean)
         else:
-            match, conf = nlp_brain.interpret(text)
+            match, conf = nlp_brain.interpret(symptom)
             if match:
-                active_features.append(match)
-                ai_log.append({"original": text, "interpreted": match, "confidence": f"{int(conf*100)}%"})
+                active_symptoms.append(match)
+                ai_corrections.append({
+                    "original": symptom,
+                    "interpreted": match,
+                    "confidence": f"{int(conf * 100)}%"
+                })
 
-    active_features = list(set(active_features))
+    active_symptoms = list(set(active_symptoms))
 
-    # Handle empty valid input
-    if not active_features:
+    if not active_symptoms:
         return {
             "diagnosis": "Unknown",
             "confidence": 0.0,
             "alert_level": "uncertain",
-            "treatments": ["Please provide more specific symptoms."],
-            "ai_corrections": []
+            "treatments": ["Insufficient symptom data provided."],
+            "ai_corrections": [],
+            "disclaimer": "This output is for decision support only."
         }
 
-    # 2. Prediction Logic
-    vector = [0] * len(symptom_names)
-    for s in active_features:
+    vector = np.zeros(len(symptom_names))
+    for s in active_symptoms:
         vector[symptom_to_index[s]] = 1
-    
-    raw_prediction = model.predict([vector])[0]
-    # FORCE TITLE CASE (Fixes "heart attack" vs "Heart Attack" mismatch)
-    prediction = str(raw_prediction).strip().title()
-    
-    probs = model.predict_proba([vector])[0]
-    confidence_score = round(max(probs), 4)
 
-    # 3. INTELLIGENT ALERT LOGIC (Traffic Light System)
-    alert_level = "safe"  # Default to Green
-    
-    # Check 1: Is it a dangerous disease? (RED)
-    if prediction in CRITICAL_CONDITIONS:
-        alert_level = "critical"
-    
-    # Check 2: Is the AI confused/unsure? (YELLOW)
-    # This prevents "Acne" (19%) from becoming a Critical Alert
-    elif confidence_score < 0.45:
-        alert_level = "uncertain"
+    prediction_raw = model.predict(vector.reshape(1, -1))[0]
+    prediction = str(prediction_raw).title()
 
-    # 4. FETCH TREATMENTS BASED ON ALERT LEVEL
-    if alert_level == "critical":
-        treatments = [
-            "⚠️ IMMEDIATE MEDICAL ATTENTION REQUIRED",
-            "Visit the nearest hospital emergency room.",
-            "Do not rely on home remedies.",
-            "Monitor vital signs (Pulse, Breathing)."
-        ]
-    elif alert_level == "uncertain":
-        treatments = [
-            "⚠️ Diagnosis is unclear (Low Confidence).",
-            "Please consult a General Physician for accurate diagnosis.",
-            "Do not take medication without a prescription.",
-            "Monitor symptoms closely."
-        ]
-    else:
-        # Green / Safe Mode -> Fetch from CSV
-        treatments = TREATMENT_DATABASE.get(prediction, ["Consult a doctor", "Rest and hydration"])
+    probabilities = model.predict_proba(vector.reshape(1, -1))[0]
+    confidence_score = round(float(probabilities.max()), 4)
 
-    # Debug Log
-    print(f"🔍 DEBUG: {prediction} | Conf: {confidence_score} | Alert: {alert_level}")
+    alert_level = determine_alert_level(prediction, confidence_score)
+    treatments = get_treatment_plan(prediction, alert_level)
+
+    logger.info(f"Diagnosis={prediction} Confidence={confidence_score} Alert={alert_level}")
 
     return {
         "diagnosis": prediction,
         "confidence": confidence_score,
-        "alert_level": alert_level,  # 'safe', 'uncertain', or 'critical'
+        "alert_level": alert_level,
         "treatments": treatments,
-        "ai_corrections": ai_log
+        "ai_corrections": ai_corrections,
+        "disclaimer": "This output is for decision support only and not a medical diagnosis."
     }
 
+# ===============================
+# 8. ENTRY POINT
+# ===============================
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=3000)

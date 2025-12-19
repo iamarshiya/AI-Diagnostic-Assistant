@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { useNavigate } from 'react-router-dom';
 
-// Default symptom options
+/* =======================
+   DEFAULT SYMPTOMS
+======================= */
 const DEFAULT_SYMPTOMS = [
   { value: 'itching', label: 'Itching' },
   { value: 'skin_rash', label: 'Skin Rash' },
@@ -52,110 +54,157 @@ const DEFAULT_SYMPTOMS = [
   { value: 'congestion', label: 'Congestion' },
   { value: 'chest_pain', label: 'Chest Pain' },
   { value: 'fast_heart_rate', label: 'Fast Heart Rate' },
-  { value: 'dizziness', label: 'Dizziness' }
+  { value: 'dizziness', label: 'Dizziness' },
 ];
 
+/* =======================
+   MAIN COMPONENT
+======================= */
 function SymptomForm() {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [symptomOptions, setSymptomOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [symptomOptions, setSymptomOptions] = useState([]);
-  const [loadingSymptoms, setLoadingSymptoms] = useState(true);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     setSymptomOptions(DEFAULT_SYMPTOMS);
-    setLoadingSymptoms(false);
-
-    const fetchSymptoms = async () => {
-      try {
-        const response = await fetch('/symptoms');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.symptoms?.length > 0) {
-            const options = data.symptoms.map(symptom => ({
-              value: symptom,
-              label: symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-            }));
-            setSymptomOptions(options);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching symptoms:', err);
-      }
-    };
-
-    fetchSymptoms();
   }, []);
-
-  const handleSymptomChange = (selectedOptions) => {
-    setSelectedSymptoms(selectedOptions || []);
-    setError(null);
-  };
 
   const handlePredict = async () => {
     setLoading(true);
     setError(null);
 
-    const symptoms = selectedSymptoms.map(s => s.value);
-
     try {
-      const response = await fetch('http://localhost:8001/predict', { 
+      const response = await fetch('http://localhost:3000/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symptoms }),
+        body: JSON.stringify({
+          symptoms: selectedSymptoms.map(s => s.value),
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // --- CHANGE IS HERE ---
-        // Instead of saving to state, we navigate immediately
-        navigate("/prediction-details", { state: { prediction: data } });
+        navigate('/prediction-details', { state: { prediction: data } });
       } else {
         setError(data.detail || 'Prediction failed');
       }
-    } catch (err) {
-      setError('Backend not reachable. ' + err.message);
+    } catch {
+      setError('Unable to reach diagnostic service.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="form-container">
-      <h2 className="form-title">Symptom Analysis</h2>
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-50">
 
-      <div className="form-group">
-        <label className="form-label">Select Your Symptoms:</label>
-        {loadingSymptoms ? (
-          <div>Loading symptoms...</div>
-        ) : (
-          <Select
-            isMulti
-            value={selectedSymptoms}
-            onChange={handleSymptomChange}
-            options={symptomOptions}
-            placeholder="Type to search symptoms..."
-            className="symptom-select"
-            classNamePrefix="select"
-          />
-        )}
-      </div>
+      {/* ================= HEADER ================= */}
+     <header className="border-b bg-white">
+  <div className="mx-auto max-w-6xl px-6 py-4 text-center">
+    <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
+      AI Diagnostic Assistant
+    </h1>
 
-      <div className="button-group">
-        <button
-          onClick={handlePredict}
-          disabled={loading || selectedSymptoms.length === 0}
-          className={loading || selectedSymptoms.length === 0 ? 'button-disabled' : 'button-primary'}
-        >
-          {loading ? 'Analyzing...' : 'Predict Disease'}
-        </button>
-      </div>
+    <p className="mt-1 text-sm text-gray-600 mx-auto max-w-3xl">
+      Machine-learning–based symptom analysis to support preliminary
+      clinical assessment and decision-making.
+    </p>
 
-      
-      {error && <div className="error-message">{error}</div>}
+    <p className="mt-1 text-xs text-gray-500">
+      Informational output only. Not a medical diagnosis.
+    </p>
+  </div>
+</header>
+
+
+      {/* ================= MAIN ================= */}
+      <main className="flex-1 flex items-center px-6">
+        <div className="mx-auto w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
+
+          {/* LEFT CONTENT */}
+          <div className="space-y-4">
+            <h2 className="text-3xl font-semibold text-slate-900">
+              Symptom Assessment
+            </h2>
+
+            <p className="text-slate-600 max-w-md">
+              Select all symptoms currently experienced. The system evaluates
+              symptom combinations using a trained clinical prediction model.
+            </p>
+
+            <div className="border-l-2 border-slate-300 pl-4 text-sm text-slate-600">
+              Results are presented as clinical decision-support insights.
+            </div>
+          </div>
+
+          {/* RIGHT FORM */}
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Symptom Selection
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Search and select all applicable symptoms
+            </p>
+
+            <div className="mt-4">
+              <Select
+                isMulti
+                value={selectedSymptoms}
+                onChange={setSelectedSymptoms}
+                options={symptomOptions}
+                placeholder="Type to search symptoms"
+                classNamePrefix="react-select"
+                styles={{
+                  control: base => ({
+                    ...base,
+                    borderRadius: '0.75rem',
+                    borderColor: '#CBD5E1',
+                    boxShadow: 'none',
+                    minHeight: '44px',
+                  }),
+                }}
+              />
+            </div>
+
+            <button
+              onClick={handlePredict}
+              disabled={loading || selectedSymptoms.length === 0}
+              className={`mt-5 w-full py-2.5 rounded-lg font-medium transition
+                ${
+                  loading || selectedSymptoms.length === 0
+                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                }
+              `}
+            >
+              {loading ? 'Analyzing…' : 'Generate Assessment'}
+            </button>
+
+            {error && (
+              <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-slate-500">
+              This system does not replace professional medical evaluation.
+            </p>
+          </div>
+        </div>
+      </main>
+
+      {/* ================= FOOTER ================= */}
+      <footer className="border-t bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-2 text-xs text-gray-500 text-center">
+          © 2025 AI Diagnostic Assistant — Clinical decision support prototype
+        </div>
+      </footer>
+
     </div>
   );
 }
