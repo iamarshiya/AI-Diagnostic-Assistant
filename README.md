@@ -1,117 +1,154 @@
-# AI Diagnostic Assistant
 
-An AI-powered healthcare application that provides symptom analysis, disease prediction, and chatbot support.
+# Symptomate — AI Diagnostic Assistant
 
-## Features
+![React](https://img.shields.io/badge/Frontend-React_18-blue?logo=react)
+![Python](https://img.shields.io/badge/Backend-FastAPI_%26_Scikit--Learn-green?logo=python)
+![Tailwind](https://img.shields.io/badge/Style-Tailwind_CSS-38B2AC?logo=tailwind-css)
 
-- 🔍 **Symptom Analysis**: Input symptoms and get disease predictions
-- 🤖 **AI Chatbot**: Healthcare-focused conversational AI
-- 📊 **Confidence Scoring**: Get prediction confidence levels
-- 🎯 **Dataset References**: View training/testing data matches
+**Symptomate** is a clinical decision-support prototype designed to analyze patient symptoms using machine learning. It features an NLP-based symptom interpreter, a Neural Network (MLP) classification model, and a rule-based safety layer to identify critical medical conditions.
 
-## Tech Stack
+> **⚠️ Disclaimer:** This system is for educational and decision-support purposes only. It is **not** a replacement for professional medical diagnosis.
 
-**Backend:**
+---
 
-- FastAPI
-- Python 3.8+
-- OpenAI GPT-3.5-turbo
-- Scikit-learn
-- Pandas
+## ✨ Key Features
 
-**Frontend:**
+* **🧠 Neural Network Inference**: Uses a Multi-Layer Perceptron (MLP) classifier trained on clinical symptom datasets.
+* **🗣️ NLP Symptom Interpreter**: Includes a custom TF-IDF vectorizer to handle typos and interpret non-standard symptom descriptions.
+* **🛡️ Clinical Safety Logic**:
+    * **Critical Alerts**: Automatically flags high-risk conditions (e.g., Heart Attack, Pneumonia).
+    * **Confidence Gating**: Flags low-confidence predictions (<45%) as "Uncertain/Inconclusive".
+* **⚡ High Performance**: Lightweight, single-file backend with no external API dependencies.
 
-- React.js
-- Tailwind CSS
-- Axios
+---
 
-## Installation
+## 🛠️ Tech Stack
 
-### Backend Setup
+### **Backend**
+* **FastAPI**: High-performance API layer.
+* **Scikit-learn**: MLPClassifier for disease prediction.
+* **Pandas/NumPy**: Data manipulation and vectorization.
 
-1. Clone the repository:
+### **Frontend**
+* **React.js**: Component-based UI.
+* **Tailwind CSS**: Modern styling with custom gradients and shadow effects.
+* **React Select**: Searchable dropdowns for symptom input.
 
-```bash
-git clone https://github.com/yourusername/ai-diagnostic-assistant.git
-cd ai-diagnostic-assistant
+---
+
+## 📂 Project Structure
+
+```text
+AI-Diagnostic-Assistant/
+├── README.md
+├── backend/
+│   ├── requirements.txt            Python dependencies
+│   └── model/
+│       ├── main.py                 Main application (API + Logic)
+│       ├── train_model.py         Script to retrain model manually
+│       ├── diagnosis_model.pkl    Serialized trained model
+│       ├── Training.csv           Training dataset
+│       └── Testing.csv            Testing dataset
+└── frontend/
+    ├── package.json
+    ├── public/
+    └── src/
+        ├── App.js
+        └── components/
+            ├── SymptomForm.jsx        Main symptom input card                       
+            └── PredictionDetails.jsx  Diagnosis result display
+         
+
 ```
 
-2. Create a virtual environment:
+---
+
+## 🚀 Installation & Setup
+
+### 1. Backend Setup (Python)
+
+The backend code and data live in the `backend/model` directory.
 
 ```bash
+# Navigate to backend
 cd backend
+
+# Create virtual environment (Optional but recommended)
 python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # macOS/Linux
-```
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-3. Install dependencies:
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-4. Set up environment variables:
-
-```bash
-# Create .env file in backend directory
-echo "OPENAI_API_KEY=your-openai-api-key-here" > .env
-```
-
-5. Run the backend:
-
-```bash
+# Navigate to the model directory to run the app
 cd model
+
+# Run the server
+# The app will look for Training.csv in the current directory
 python main.py
+
 ```
 
-### Frontend Setup
+*Server will start at `http://localhost:3000` (or the port defined in `main.py`).*
 
-1. Navigate to frontend directory:
+### 2. Frontend Setup (React)
 
 ```bash
+# Open a new terminal and navigate to frontend
 cd frontend
-```
 
-2. Install dependencies:
-
-```bash
+# Install dependencies
 npm install
-```
 
-3. Start the development server:
-
-```bash
+# Start the development server
 npm start
+
 ```
 
-## Usage
+*Client will run at `http://localhost:3000` (If port 3000 is taken by Python, React will usually ask to run on 3001).*
 
-1. Start the backend server (runs on `http://localhost:8001`)
-2. Start the frontend server (runs on `http://localhost:3000`)
-3. Access the application in your browser
-4. Use the symptom form to get disease predictions
-5. Chat with the AI assistant for healthcare guidance
+---
 
-## API Endpoints
+## 🔌 API Endpoints
 
-- `GET /` - API status
-- `GET /symptoms` - List available symptoms
-- `POST /predict` - Predict disease from symptoms
-- `POST /chat` - Chat with AI assistant
+### `POST /predict`
 
-## ⚠️ Important Disclaimer
+Accepts a list of symptoms and returns a diagnosis with confidence scores and safety alerts.
 
-This application is for educational purposes only. Always consult healthcare professionals for medical advice.
+**Request:**
 
-## Contributing
+```json
+{
+  "symptoms": ["chest pain", "vomiting", "sweating"]
+}
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+```
 
-## License
+**Response:**
+
+```json
+{
+  "diagnosis": "Heart Attack",
+  "confidence": 0.92,
+  "alert_level": "critical",
+  "treatments": [
+    "Immediate medical evaluation is required.",
+    "Proceed to the nearest emergency medical facility."
+  ],
+  "ai_corrections": [],
+  "disclaimer": "This output is for decision support only..."
+}
+
+```
+
+## 🤝 Contributing
+
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/NewAlgorithm`).
+3. Commit your changes.
+4. Push to the branch.
+5. Open a Pull Request.
+
+## 📄 License
 
 This project is licensed under the MIT License.
