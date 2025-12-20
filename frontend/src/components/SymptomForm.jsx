@@ -100,23 +100,25 @@ function SymptomForm() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-cyan-100 via-white to-cyan-100">
 
-      {/* ================= HEADER ================= */}
-     <header className="border-b bg-white">
-  <div className="mx-auto max-w-6xl px-6 py-4 text-center">
-    <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
-      AI Diagnostic Assistant
+  {/* ================= HEADER ================= */}
+<header className="sticky top-0 z-40 bg-gradient-to-r from-cyan-50 to-emerald-50 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+  <div className="mx-auto max-w-6xl px-6 py-5 text-center">
+
+    <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex justify-center items-center gap-2">
+      
+      Symptomate
     </h1>
 
-    <p className="mt-1 text-sm text-gray-600 mx-auto max-w-3xl">
-      Machine-learning–based symptom analysis to support preliminary
-      clinical assessment and decision-making.
+    <p className="mt-1 text-sm text-slate-600 max-w-3xl mx-auto">
+      AI Diagnostic Assistant — Clinical decision support prototype
     </p>
 
-    <p className="mt-1 text-xs text-gray-500">
+    <p className="mt-1 text-xs text-slate-500">
       Informational output only. Not a medical diagnosis.
     </p>
+
   </div>
 </header>
 
@@ -126,7 +128,8 @@ function SymptomForm() {
         <div className="mx-auto w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
 
           {/* LEFT CONTENT */}
-          <div className="space-y-4">
+          <div className="space-y-4" >
+            
             <h2 className="text-3xl font-semibold text-slate-900">
               Symptom Assessment
             </h2>
@@ -142,7 +145,7 @@ function SymptomForm() {
           </div>
 
           {/* RIGHT FORM */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+          <div className="bg-white border border-white/40 rounded-2xl shadow-[0_35px_60px_-15px_rgba(0,0,0,0.8)] p-8 relative z-10">
             <h3 className="text-lg font-semibold text-slate-900">
               Symptom Selection
             </h3>
@@ -191,19 +194,23 @@ function SymptomForm() {
               </div>
             )}
 
-            <p className="mt-3 text-xs text-slate-500">
-              This system does not replace professional medical evaluation.
-            </p>
+            <p className="mt-3 text-base font-medium text-red-600">
+  ⚠️ This system does not replace professional medical evaluation.
+</p>
+
+
           </div>
         </div>
       </main>
 
       {/* ================= FOOTER ================= */}
-      <footer className="border-t bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-2 text-xs text-gray-500 text-center">
-          © 2025 AI Diagnostic Assistant — Clinical decision support prototype
-        </div>
-      </footer>
+<footer className="bg-gradient-to-r from-cyan-50 to-emerald-50 shadow-[0_-4px_20px_rgba(0,0,0,0.4)]">
+  <div className="mx-auto max-w-6xl px-6 py-3 text-xs text-slate-500 text-center">
+    © 2025 <span className="font-medium text-slate-600">Symptomate</span> — Clinical decision support prototype
+  </div>
+</footer>
+
+
 
     </div>
   );
