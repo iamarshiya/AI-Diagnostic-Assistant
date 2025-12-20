@@ -54,10 +54,13 @@ AI-Diagnostic-Assistant/
     ├── public/
     └── src/
         ├── App.js
+        ├── index.css 
+        ├── index.js
         └── components/
-            ├── SymptomForm.jsx        Main symptom input card                       
-            └── PredictionDetails.jsx  Diagnosis result display
-         
+            ├── SymptomForm.jsx    
+            Main symptom input card
+            └── PredictionDetails.jsx 
+         Diagnosis result display
 
 ```
 
