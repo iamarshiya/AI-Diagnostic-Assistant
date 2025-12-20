@@ -119,7 +119,6 @@ class MedicalLanguageEncoder:
 # ===============================
 # 5. MODEL LOADING / TRAINING
 # ===============================
-
 def load_or_train_model():
     # If model exists, load it
     if os.path.exists(MODEL_PATH):
@@ -132,8 +131,16 @@ def load_or_train_model():
         raise RuntimeError(f"Training dataset not found at {TRAINING_CSV}. Cannot train model.")
 
     df = pd.read_csv(TRAINING_CSV)
+    
+    # === 🛠 FIX START: Remove empty ghost columns ===
+    # Many datasets have an empty 'Unnamed: 133' column at the end.
+    # We remove any column that has "Unnamed" in its name.
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    
+    # Now the last column is definitely the target (Prognosis)
     X = df.iloc[:, :-1]
     y = df.iloc[:, -1]
+    # === 🛠 FIX END ===
 
     symptom_names = list(X.columns)
     symptom_index = {
