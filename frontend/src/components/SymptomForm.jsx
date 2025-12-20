@@ -77,7 +77,7 @@ function SymptomForm() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:3000/predict', {
+      const response = await fetch('/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
