@@ -36,6 +36,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MedicalAI")
 
@@ -44,7 +45,11 @@ logger = logging.getLogger("MedicalAI")
 # ===============================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# Check if 'data' folder exists, otherwise assume csvs are in root (common deployment fix)
+if os.path.exists(os.path.join(BASE_DIR, "data")):
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+else:
+    DATA_DIR = BASE_DIR
 
 MODEL_PATH = os.path.join(BASE_DIR, "diagnosis_model.pkl")
 TRAINING_CSV = os.path.join(DATA_DIR, "Training.csv")
@@ -65,20 +70,23 @@ CRITICAL_CONDITIONS = [
 def load_treatment_database():
     treatments = {}
     if not os.path.exists(PRECAUTION_CSV):
-        logger.warning("Precaution database not found.")
+        logger.warning(f"Precaution database not found at {PRECAUTION_CSV}")
         return treatments
 
-    df = pd.read_csv(PRECAUTION_CSV)
-    for _, row in df.iterrows():
-        disease = str(row["Disease"]).strip().title()
-        precautions = [
-            str(row[col]).strip().title()
-            for col in ["Precaution_1", "Precaution_2", "Precaution_3", "Precaution_4"]
-            if pd.notna(row[col])
-        ]
-        treatments[disease] = precautions
-
-    logger.info(f"Loaded treatments for {len(treatments)} conditions.")
+    try:
+        df = pd.read_csv(PRECAUTION_CSV)
+        for _, row in df.iterrows():
+            disease = str(row["Disease"]).strip().title()
+            precautions = [
+                str(row[col]).strip().title()
+                for col in ["Precaution_1", "Precaution_2", "Precaution_3", "Precaution_4"]
+                if pd.notna(row[col])
+            ]
+            treatments[disease] = precautions
+        logger.info(f"Loaded treatments for {len(treatments)} conditions.")
+    except Exception as e:
+        logger.error(f"Failed to load treatment database: {e}")
+        
     return treatments
 
 TREATMENT_DATABASE = load_treatment_database()
@@ -113,14 +121,15 @@ class MedicalLanguageEncoder:
 # ===============================
 
 def load_or_train_model():
+    # If model exists, load it
     if os.path.exists(MODEL_PATH):
-        logger.info("Loading trained model.")
+        logger.info("Loading trained model from disk.")
         return joblib.load(MODEL_PATH)
 
-    logger.info("Training new AI model.")
+    logger.info("Model not found. Training new AI model...")
 
     if not os.path.exists(TRAINING_CSV):
-        raise RuntimeError("Training dataset not found.")
+        raise RuntimeError(f"Training dataset not found at {TRAINING_CSV}. Cannot train model.")
 
     df = pd.read_csv(TRAINING_CSV)
     X = df.iloc[:, :-1]
@@ -132,6 +141,7 @@ def load_or_train_model():
         for i, name in enumerate(symptom_names)
     }
 
+    # MLP Neural Network
     model = MLPClassifier(
         hidden_layer_sizes=(64, 32),
         max_iter=500,
@@ -139,9 +149,13 @@ def load_or_train_model():
     )
     model.fit(X, y)
 
+    # Save for next time
     joblib.dump((model, symptom_index, symptom_names), MODEL_PATH)
+    logger.info("Model trained and saved successfully.")
+    
     return model, symptom_index, symptom_names
 
+# Load model on startup
 model, symptom_to_index, symptom_names = load_or_train_model()
 nlp_brain = MedicalLanguageEncoder(list(symptom_to_index.keys()))
 
@@ -182,6 +196,7 @@ def get_treatment_plan(diagnosis: str, alert_level: str):
 
 app = FastAPI(title="Medical AI Diagnostic System")
 
+# CORS - Allow all origins for development/demo
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -192,6 +207,13 @@ app.add_middleware(
 class InputPayload(BaseModel):
     symptoms: List[str]
 
+@app.get("/")
+def health_check():
+    """
+    Simple health check to verify the API is running.
+    """
+    return {"status": "online", "system": "Medical AI Diagnostic Assistant"}
+
 @app.post("/predict")
 def predict(payload: InputPayload):
     if not model:
@@ -200,6 +222,7 @@ def predict(payload: InputPayload):
     active_symptoms = []
     ai_corrections = []
 
+    # 1. NLP Processing
     for symptom in payload.symptoms:
         clean = symptom.lower().replace(" ", "_")
         if clean in symptom_to_index:
@@ -216,26 +239,30 @@ def predict(payload: InputPayload):
 
     active_symptoms = list(set(active_symptoms))
 
+    # 2. Validation
     if not active_symptoms:
         return {
             "diagnosis": "Unknown",
             "confidence": 0.0,
             "alert_level": "uncertain",
-            "treatments": ["Insufficient symptom data provided."],
+            "treatments": ["Insufficient symptom data provided. Please try different terms."],
             "ai_corrections": [],
             "disclaimer": "This output is for decision support only."
         }
 
+    # 3. Vectorization
     vector = np.zeros(len(symptom_names))
     for s in active_symptoms:
         vector[symptom_to_index[s]] = 1
 
+    # 4. Inference
     prediction_raw = model.predict(vector.reshape(1, -1))[0]
     prediction = str(prediction_raw).title()
 
     probabilities = model.predict_proba(vector.reshape(1, -1))[0]
     confidence_score = round(float(probabilities.max()), 4)
 
+    # 5. Logic Layer
     alert_level = determine_alert_level(prediction, confidence_score)
     treatments = get_treatment_plan(prediction, alert_level)
 
@@ -255,4 +282,7 @@ def predict(payload: InputPayload):
 # ===============================
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    # Get port from environment variable (Render sets this automatically)
+    # Default to 3000 if running locally
+    port = int(os.environ.get("PORT", 3000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
