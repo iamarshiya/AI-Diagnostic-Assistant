@@ -39,7 +39,7 @@ function PredictionDetails() {
   if (safePrediction.alert_level === 'critical') {
     theme = {
       // Updated to a gradient for more depth
-      bg: 'bg-gradient-to-b from-rose-100 via-rose-50 to-white',
+      bg: 'bg-gradient-to-b from-red-100 via-red-50 to-white',
       lightBg: 'bg-white',
       text: 'text-rose-900',
       border: 'border-rose-100',
