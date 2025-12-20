@@ -77,7 +77,7 @@ function SymptomForm() {
     setError(null);
 
     try {
-      const response = await fetch('/api/predict', {
+      const response = await fetch('https://symptomate-ai-diagnostic-assistant.onrender.com/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
