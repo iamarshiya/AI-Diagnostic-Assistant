@@ -55,6 +55,3 @@ Thumbs.db
 *.h5
 *.model
 
-# Data files (if large/sensitive)
-*.csv
-data/
