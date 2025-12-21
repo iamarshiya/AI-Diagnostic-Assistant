@@ -5,6 +5,8 @@
 ![Python](https://img.shields.io/badge/Backend-FastAPI_%26_Scikit--Learn-green?logo=python)
 ![Tailwind](https://img.shields.io/badge/Style-Tailwind_CSS-38B2AC?logo=tailwind-css)
 
+**LIVE LINK** - https://symptomate-ai-diagnostic-assistant-self.vercel.app/
+
 **Symptomate** is a clinical decision-support prototype designed to analyze patient symptoms using machine learning. It features an NLP-based symptom interpreter, a Neural Network (MLP) classification model, and a rule-based safety layer to identify critical medical conditions.
 
 > **⚠️ Disclaimer:** This system is for educational and decision-support purposes only. It is **not** a replacement for professional medical diagnosis.
